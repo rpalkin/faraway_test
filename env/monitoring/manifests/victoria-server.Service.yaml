@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: server
+    app.kubernetes.io/instance: victoria
+    app.kubernetes.io/name: victoria
+    helm.sh/chart: victoria-metrics-single-0.8.53
+  name: victoria-server
+  namespace: monitoring
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 8428
+    protocol: TCP
+    targetPort: http
+  selector:
+    app: server
+    app.kubernetes.io/instance: victoria
+    app.kubernetes.io/name: victoria

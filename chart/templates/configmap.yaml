@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "faraway-app.fullname" . }}
+  labels:
+    {{- include "faraway-app.labels" . | nindent 4 }}
+data:
+  REDIS_ADDR: {{ .Values.redisAddr }}

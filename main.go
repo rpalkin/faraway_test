@@ -6,22 +6,36 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/julienschmidt/httprouter"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	metrics "github.com/slok/go-http-metrics/metrics/prometheus"
+	"github.com/slok/go-http-metrics/middleware"
+	httproutermiddleware "github.com/slok/go-http-metrics/middleware/httprouter"
 	"go.uber.org/zap"
-	"time"
 )
 
 type server struct {
-	redis redis.UniversalClient
+	redis  redis.UniversalClient
 	logger *zap.Logger
 }
 
 func main() {
+
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatal("unable to initialize logger")
 	}
+
+	mdlw := middleware.New(middleware.Config{
+		Recorder: metrics.NewRecorder(metrics.Config{}),
+	})
 
 	rdb := redis.NewUniversalClient(&redis.UniversalOptions{
 		Addrs:    []string{os.Getenv("REDIS_ADDR")},
@@ -30,16 +44,34 @@ func main() {
 	})
 
 	srv := &server{
-		redis: rdb,
+		redis:  rdb,
 		logger: logger,
 	}
 
 	router := httprouter.New()
 
-	router.GET("/", srv.indexHandler)
+	router.GET("/", httproutermiddleware.Handler("/", srv.indexHandler, mdlw))
+	router.GET("/health", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		w.WriteHeader(http.StatusOK)
+	})
 
-	logger.Info("server started on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	router.GET("/ready", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	go func() {
+		logger.Info("metrics listening at 8081")
+		if err := http.ListenAndServe(":8081", promhttp.Handler()); err != nil {
+			log.Panicf("error while serving metrics: %s", err)
+		}
+	}()
+
+	go func() {
+		logger.Info("server started on port 8080")
+		log.Fatal(http.ListenAndServe(":8080", router))
+	}()
+
+	<-ctx.Done()
 }
 
 func (s *server) indexHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

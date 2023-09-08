@@ -1,0 +1,75 @@
+version: '3.9'
+
+volumes:
+  redisdata: { driver: local }
+  vmdata: { driver: local }
+  vmagentdata: { driver: local } 
+  grafanadata: { driver: local }
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '8080:8080'
+      - '8081:8081'
+    environment:
+      - REDIS_ADDR=redis:6379
+
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1
+    volumes:
+      - redisdata:/data
+  redis-exporter:
+    image: bitnami/redis-exporter
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - '9121:9121'
+
+  vmagent:
+    container_name: vmagent
+    image: victoriametrics/vmagent:v1.93.3
+    depends_on:
+      - victoriametrics
+    ports:
+      - 8429:8429
+    volumes:
+      - vmagentdata:/vmagentdata
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yaml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yaml"
+      - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
+    restart: always
+  victoriametrics:
+    container_name: victoriametrics
+    image: victoriametrics/victoria-metrics:v1.93.3
+    ports:
+      - 8428:8428
+    volumes:
+      - vmdata:/storage
+    command:
+      - "--storageDataPath=/storage"
+      - "--httpListenAddr=:8428"
+    restart: always
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:9.2.7
+    depends_on:
+      - victoriametrics
+    ports:
+      - 3000:3000
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./config/grafana/:/etc/grafana/provisioning/
+      - ./config/monitoring.json:/var/lib/grafana/dashboards/monitoring.json
+    restart: always

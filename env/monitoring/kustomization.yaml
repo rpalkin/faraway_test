@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- manifests/monitoring.Namespace.yaml
+- manifests/victoria-clusterrole.ClusterRole.yaml
+- manifests/victoria-clusterrolebinding.ClusterRoleBinding.yaml
+- manifests/victoria-server-scrapeconfig.ConfigMap.yaml
+- manifests/victoria-server.Service.yaml
+- manifests/victoria-server.StatefulSet.yaml
+- manifests/victoria.Role.yaml
+- manifests/victoria.RoleBinding.yaml
+- manifests/victoria.ServiceAccount.yaml
+- manifests/grafana.yaml
+
+namespace: monitoring

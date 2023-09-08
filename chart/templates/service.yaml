@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "faraway-app.fullname" . }}
+  labels:
+    {{- include "faraway-app.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}    
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: {{ .Values.service.metrics.port }}
+      targetPort: metrics
+      name: metrics
+  selector:
+    {{- include "faraway-app.selectorLabels" . | nindent 4 }}

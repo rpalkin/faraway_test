@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    helm.sh/chart: victoria-metrics-single-0.8.53
+  name: victoria
+  namespace: monitoring
+rules:
+- apiGroups:
+  - extensions
+  resourceNames:
+  - victoria
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
